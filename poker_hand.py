@@ -25,23 +25,23 @@ class PokerHand(object):
         self.hand_value = self.define_hand_value()
 
     def define_hand_value(self):
+        score = sum(self.card_rank.index(vc[0]) * vc[1] for vc in self.values_counter)
         hand_sorted = sorted(self.hand_cards, key=lambda c: self.card_rank.index(c[0]))
         if all(self.card_rank.index(hand_sorted[i][0]) + 1 == self.card_rank.index(hand_sorted[i + 1][0]) for i in range(4)):
             # straight
-            return self.handle_straight()
+            return self.handle_straight(score), score
 
         if len(self.suits_counter) == 1:
-            return "Flush"
+            return "Flush", score
 
         if len(self.values_counter) < 5:
             return self.handle_pairs()
 
-        return "Highcard"
+        return "Highcard", self.card_rank.index(hand_sorted[-1][0])
 
-    def handle_straight(self):
+    def handle_straight(self, score):
         if len(self.suits_counter) == 1:
-            score = sum(self.card_rank.index(vc[0]) * vc[1] for vc in self.values_counter)
-            return ("Royal flush", score) if score == 50 else ("Straight flush", score)
+            return "Royal flush" if score == 50 else "Straight flush"
         return "Straight"
 
     def handle_pairs(self):
@@ -49,25 +49,25 @@ class PokerHand(object):
         max_cnt = max(vc[1] for vc in self.values_counter)
 
         if max_cnt == 4:
-            return "Four of a kind"
+            return "Four of a kind", self.card_rank.index(self.values_counter[0][0]) * 4
 
         if max_cnt == 3 and min_cnt == 2:
-            return "Full house"
+            return "Full house", self.card_rank.index(self.values_counter[0][0]) * 3 + self.card_rank.index(self.values_counter[1][0]) * 2
 
         if max_cnt == 3:
-            return "Three of a kind"
+            return "Three of a kind", self.card_rank.index(self.values_counter[0][0]) * 3
 
         if max_cnt == 2 and len(self.values_counter) == 3:
-            return "Two pairs"
+            return "Two pairs", self.card_rank.index(self.values_counter[0][0]) * 2 + self.card_rank.index(self.values_counter[1][0]) * 2
 
-        return "Pair"
+        return "Pair", self.card_rank.index(self.values_counter[0][0]) * 2
 
     def compare_with(self, other):
-        if self.hand_values.index(self.hand_value) == self.hand_values.index(other.hand_value):
-            if self.hand_score == other.hand_score:
+        if self.hand_values.index(self.hand_value[0]) == self.hand_values.index(other.hand_value[0]):
+            if self.hand_value[0] == other.hand_value[0] and self.hand_value[1] == other.hand_value[1]:
                 return self.RESULT[2]
             return self.RESULT[1] if self.hand_score > other.hand_score else self.RESULT[0]
-        return self.RESULT[1] if self.hand_values.index(self.hand_value) > self.hand_values.index(other.hand_value) else self.RESULT[0]
+        return self.RESULT[1] if self.hand_values.index(self.hand_value[0]) > self.hand_values.index(other.hand_value[0]) else self.RESULT[0]
 
 
 ph1 = PokerHand('KC 4H KS 2H 8D')
