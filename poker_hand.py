@@ -4,7 +4,7 @@ from collections import Counter
 class PokerHand(object):
     RESULT = ["Loss", "Win", "Tie"]
 
-    CD_RANK = "23456789TJQKA"
+    CD_VALUES = "23456789TJQKA"
     HD_RANK = ["Highcard",
                "Pair",
                "Two pairs",
@@ -17,60 +17,64 @@ class PokerHand(object):
                "Royal flush"]
 
     def __init__(self, hand):
-        hand_cards = hand.split(" ")
-        self.hand_values = sorted([v[0] for v in hand_cards], key=lambda v: self.CD_RANK.index(v))
-        self.values_counter = Counter([c[0] for c in hand_cards]).most_common()
-        self.suits_counter = Counter([c[1] for c in hand_cards]).most_common()
-        self.hand_rank = self.define_hand_rank_data()
+        hand_cards = sorted(hand.split(" "), key=lambda c: self.CD_VALUES.index(c[0]))
+        self.hand_values = [v[0] for v in hand_cards]
+        self.kicker_vals = []
+        self.win_vals = []
+        for val, amount in Counter([c[0] for c in hand_cards]).items():
+            if amount == 1:
+                self.kicker_vals.append(val)
+            elif amount > 1:
+                self.win_vals.append((val, amount))
+        self.kicker_vals.sort(key=lambda v: self.CD_VALUES.index(v))
+        self.win_vals.sort(key=lambda d: self.CD_VALUES.index(d[0]))
+        self.same_suit = any(hand.count(suit) == 5 for suit in "CHDS")
+        self.rank = self.parse_hand()
 
-    def define_hand_rank_data(self):
-        rank_val = self.rank_of(self.hand_values)
-        if all(self.CD_RANK.index(self.hand_values[i]) + 1 == self.CD_RANK.index(self.hand_values[i + 1]) for i
-               in range(4)):
+    def parse_hand(self):
+        if self.kicker_vals == 5 and ''.join(self.hand_values) in self.CD_VALUES:
             # straight
-            return self.handle_straight(), rank_val
+            return self.parse_straight()
 
-        if len(self.suits_counter) == 1:
-            return "Flush", rank_val
+        if self.same_suit:
+            return "Flush"
 
-        if len(self.values_counter) < 5:
-            return self.handle_pairs(), rank_val
+        if len(self.kicker_vals) < 5:
+            return self.parse_pairs()
 
-        return "Highcard", rank_val
+        return "Highcard"
 
-    def handle_straight(self):
-        if len(self.suits_counter) == 1:
-            return "Royal flush" if self.rank_of(self.hand_values) == 50 else "Straight flush"
+    def parse_straight(self):
+        if self.same_suit:
+            return "Royal flush" if self.kicker_vals[0] == "T" else "Straight flush"
         return "Straight"
 
-    def handle_pairs(self):
-        min_cnt = min(vc[1] for vc in self.values_counter)
-        max_cnt = max(vc[1] for vc in self.values_counter)
-        rank = "Pair"
+    def parse_pairs(self):
+        min_cnt = min(self.win_vals)[1]
+        max_cnt = max(self.win_vals)[1]
         if max_cnt == 4:
-            rank = "Four of a kind"
-        elif max_cnt == 3 and min_cnt == 2:
-            rank = "Full house"
-        elif max_cnt == 3:
-            rank = "Three of a kind"
-        elif max_cnt == 2 and len(self.values_counter) == 3:
-            rank = "Two pairs"
-        return rank
+            return "Four of a kind"
+        if max_cnt == 3 and min_cnt == 2:
+            return "Full house"
+        if max_cnt == 3:
+            return "Three of a kind"
+        if max_cnt == 2 and len(self.win_vals) == 2:
+            return "Two pairs"
+        return "Pair"
 
     def rank_of(self, hand_values):
-        return sum(self.CD_RANK.index(v) for v in hand_values)
+        return sum(self.CD_VALUES.index(v) for v in hand_values)
 
     def compare_with(self, other):
-        if self.hand_rank == other.hand_rank:
-            return self.RESULT[2]
-        if self.hand_rank[0] == other.hand_rank[0]:
-            return self.RESULT[0] if self.hand_rank[1] < other.hand_rank[1] else self.RESULT[1]
-        return self.RESULT[1] if self.HD_RANK.index(self.hand_rank[0]) > self.HD_RANK.index(
-            other.hand_rank[0]) else self.RESULT[0]
+        if self.HD_RANK.index(self.rank) < self.HD_RANK.index(other.rank):
+            return self.RESULT[1]
+        if self.HD_RANK.index(self.rank) > self.HD_RANK.index(other.rank):
+            return self.RESULT[0]
+        # compare Tie
 
 
 ph1 = PokerHand('KC 4H KS 2H 8D')
 ph2 = PokerHand('8C 4S KH JS 4D')
-print(ph1.hand_rank)
-print(ph2.hand_rank)
+print(ph1.hand_data)
+print(ph2.hand_data)
 print(ph1.compare_with(ph2))
